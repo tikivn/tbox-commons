@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, Dimensions, ScrollView } from 'react-native';
 import TboxCommons from 'tbox-commons';
 
 const windowWidth = Dimensions.get('window').width;
-const windowHeight = Dimensions.get('window').height;
+/* const windowHeight = Dimensions.get('window').height; */
 
 const randomColor = () => {
   var letters = '0123456789ABCDEF';
@@ -34,8 +34,8 @@ export default function App() {
   return (
     <View style={styles.container}>
       <ScrollView style={{marginTop: 50, flex:1}}>
-      {result && result.map((size, index) => { 
-        console.log(index);
+      {result && result.map((size: any, index:  number) => { 
+        /* console.log(index); */
         return <Text style={{width: texts[index].width ? texts[index].width : size, height: texts[index].width ? size : texts[index].height, fontSize:texts[index].fontSize, backgroundColor: randomColor()}}>{texts[index].text}</Text>
       })}
       </ScrollView>
