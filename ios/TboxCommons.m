@@ -24,6 +24,7 @@ RCT_EXPORT_METHOD(measure:(NSArray *)options
     for (NSDictionary *option in options) {
         float width = [RCTConvert float:option[@"width"]];
         float height = [RCTConvert float:option[@"height"]];
+        NSInteger lineHeight = [RCTConvert NSInteger:option[@"lineHeight"]];
         NSString *text = [RCTConvert NSString:option[@"text"]];
         CGFloat fontSize = [RCTConvert CGFloat:option[@"fontSize"]];
         NSString *fontFamily = [RCTConvert NSString:option[@"fontFamily"]];
@@ -31,7 +32,7 @@ RCT_EXPORT_METHOD(measure:(NSArray *)options
         UIFont *font = [self getFont:fontFamily size:fontSize weight:fontWeight];
         float result = 0;
         if (font) {
-            result = [self calculteSize:text font:font width:width height:height];
+            result = [self calculteSize:text font:font lineHeight:lineHeight width:width height:height];
         }
         [results addObject:[NSNumber numberWithFloat:result]];
     }
@@ -41,6 +42,7 @@ RCT_EXPORT_METHOD(measure:(NSArray *)options
 
 - (float)calculteSize:(NSString*)text
                  font:(UIFont *)font
+           lineHeight:(NSInteger)lineHeight
                 width:(float)width
                height:(float)height {
     BOOL isMeasureWidth = (width == 0);
@@ -52,6 +54,14 @@ RCT_EXPORT_METHOD(measure:(NSArray *)options
     [textStorage addLayoutManager:layoutManager];
     [textStorage addAttribute:NSFontAttributeName value:font
                         range:NSMakeRange(0, [textStorage length])];
+    if (lineHeight > 0) {
+        NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
+        paragraphStyle.lineBreakMode = NSLineBreakByWordWrapping;
+        paragraphStyle.minimumLineHeight = lineHeight;
+        paragraphStyle.maximumLineHeight = lineHeight;
+        [textStorage addAttribute:NSParagraphStyleAttributeName value:paragraphStyle
+        range:NSMakeRange(0, [textStorage length])];
+    }
     [textContainer setLineFragmentPadding:0.0];
     (void) [layoutManager glyphRangeForTextContainer:textContainer];
     CGRect rect = [layoutManager usedRectForTextContainer:textContainer];

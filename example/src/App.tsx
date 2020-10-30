@@ -16,9 +16,9 @@ const randomColor = () => {
 
 
 const texts = [
-  {text: "aaaaaa", width: windowWidth, fontSize: 16},
-  {text: "aaaaaaaaaaaa", width: windowWidth, fontSize: 16},
-  {text: "aaaaaaaaaaaaasdadasdasdasdasdasdasd", width: windowWidth, fontSize: 16},
+  {text: "aaaaaa", width: windowWidth, fontSize: 16, lineHeight: 20},
+  {text: "aaaaaaaaaaaa", width: windowWidth, fontSize: 16, lineHeight: 20},
+  {text: "aaaaaaaaaaaaasdadasdasdasdasdasdasd", width: windowWidth, fontSize: 16, lineHeight: 20},
   {text: "aaaaaaaaaaaamaDSBasdfgkgasKDGaksjdkasGDKgasdkgsDKJgksdgkjSGDKJHagsdkgSDHJ\n\n\nsdfsdfsfsdfasdasdasadasdasdasdasdasd", width: windowWidth, fontSize: 16},
   {text: "aaaaaaaaaaaamaDSBasdfgkgasKDGaksjdkas asdasd asdad asdasdaasd adasdasd asdasdasd", height: 20, fontSize: 16},
   {text: "aaaaaaaaaaaamaDSBasdfgkgasKDGaksjdkas asdasd asdad asdasdaasd adasdasd asdasdasd", height: 40, fontSize: 16},
