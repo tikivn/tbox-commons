@@ -16,19 +16,20 @@ const randomColor = () => {
 
 
 const texts = [
-  {text: "aaaaaa", width: windowWidth, fontSize: 16, lineHeight: 20},
-  {text: "aaaaaaaaaaaa", width: windowWidth, fontSize: 16, lineHeight: 20},
-  {text: "aaaaaaaaaaaaasdadasdasdasdasdasdasd", width: windowWidth, fontSize: 16, lineHeight: 20},
-  {text: "aaaaaaaaaaaamaDSBasdfgkgasKDGaksjdkasGDKgasdkgsDKJgksdgkjSGDKJHagsdkgSDHJ\n\n\nsdfsdfsfsdfasdasdasadasdasdasdasdasd", width: windowWidth, fontSize: 16},
-  {text: "aaaaaaaaaaaamaDSBasdfgkgasKDGaksjdkas asdasd asdad asdasdaasd adasdasd asdasdasd", height: 20, fontSize: 16},
-  {text: "aaaaaaaaaaaamaDSBasdfgkgasKDGaksjdkas asdasd asdad asdasdaasd adasdasd asdasdasd", height: 40, fontSize: 16},
-  {text: "aaaaaaaaaaaamaDSBasdfgkgasKDGaksjdkas asdasd asdad asdasdaasd adasdasd asdasdasd", height: 60, fontSize: 16},
+  {text: "aaaaaa", width: windowWidth, fontSize: 16, lineHeight: 25},
+  {text: "aaaaaaaaaaaa", width: windowWidth, fontSize: 16, lineHeight: 25},
+  {text: "aaaaaaaaaaaaasdadasdasdasdasdasdasd", width: windowWidth, fontSize: 16, lineHeight: 25},
+  {text: "aaaaaaaaaaaamaDSBasdfgkgasKDGaksjdkasGDKgasdkgsDKJgksdgkjSGDKJHagsdkgSDHJ\n\n\nsdfsdfsfsdfasdasdasadasdasdasdasdasd", width: windowWidth, fontSize: 16, lineHeight: 25},
+  {text: "Pennsylvania, bang có thể đưa Biden vượt mốc 270 phiếu đại cử tri để giành thắng lợi cuộc bầu cử Mỹ, có thể hoàn thành kiểm phiếu trong ngày 6/11, các quan chức bang cho hay. Biden hiện chỉ cách Trump chưa đầy 18.000 phiếu ở bang này. Trump từng dẫn trước tới nửa triệu phiếu vài giờ sau khi các điểm bỏ phiếu đóng cửa.", width: windowWidth, fontSize: 16, lineHeight: 25},
 ]
 export default function App() {
   const [result, setResult] = React.useState<number[]>();
 
   React.useEffect(() => {
-    TboxCommons.measure(texts).then(setResult)
+    TboxCommons.measure(texts).then((r)=> {
+      console.log("height", r);
+      setResult(r);
+    })
   }, []);
 
   return (
@@ -37,6 +38,13 @@ export default function App() {
       {result && result.map((size: any, index:  number) => { 
         /* console.log(index); */
         return <Text style={{width: texts[index].width ? texts[index].width : size, height: texts[index].width ? size : texts[index].height, fontSize:texts[index].fontSize, backgroundColor: randomColor()}}>{texts[index].text}</Text>
+      })}
+      {result && result.map((size: any, index:  number) => { 
+        /* console.log(index); */
+        return <Text onLayout={(e) => {
+          console.log( index+ " " +  e.nativeEvent.layout.height);
+        }}
+          style={{flex: 1, fontSize:texts[index].fontSize, backgroundColor: randomColor(), lineHeight:25}}>{texts[index].text}</Text>
       })}
       </ScrollView>
     </View>

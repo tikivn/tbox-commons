@@ -1,7 +1,7 @@
 package com.tboxcommons
 
-import android.annotation.SuppressLint
 import android.graphics.Typeface
+import android.graphics.text.LineBreaker
 import android.os.Build
 import android.text.Layout
 import android.text.StaticLayout
@@ -18,7 +18,7 @@ class TboxCommonsModule(reactContext: ReactApplicationContext) : ReactContextBas
 
   @ReactMethod
   fun measure(options: ReadableArray, promise: Promise) {
-    val textBreakStrategy = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) Layout.BREAK_STRATEGY_SIMPLE else Layout.BREAK_STRATEGY_HIGH_QUALITY
+    val textBreakStrategy = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) LineBreaker.BREAK_STRATEGY_SIMPLE else LineBreaker.BREAK_STRATEGY_HIGH_QUALITY
     val results: WritableArray = Arguments.createArray()
     for (i in 0 until options.size()) {
       val option = options.getMap(i)!!
@@ -27,12 +27,14 @@ class TboxCommonsModule(reactContext: ReactApplicationContext) : ReactContextBas
       val isMeasureWidth = width == 0
       val text = if (option.hasKey("text")) option.getString("text") ?: "" else ""
       val fontSize = if (option.hasKey("fontSize")) option.getDouble("fontSize") else 0.0
+      val lineHeight = if (option.hasKey("lineHeight")) option.getDouble("lineHeight") else 0.0
       val fontFamily = if (option.hasKey("fontFamily")) option.getString("fontFamily") ?: "" else ""
       val fontWeight = if (option.hasKey("fontWeight")) option.getString("fontWeight") ?: "" else ""
       val paint: TextPaint = createTextPaint(fontSize, fontFamily, fontWeight)
       val spacingMultiplier = 1f
+
       val spacingAddition = 0f
-      val includePadding = false
+      val includePadding = true
       var layout: Layout
       if (isMeasureWidth) {
         results.pushDouble(paint.measureText(text).toDouble())
@@ -42,19 +44,22 @@ class TboxCommonsModule(reactContext: ReactApplicationContext) : ReactContextBas
             text,
             paint,
             width,
-            Layout.Alignment.ALIGN_NORMAL,
+            Layout.Alignment.ALIGN_CENTER,
             spacingMultiplier,
-            spacingAddition,
+            spacingAddition.toFloat(),
             includePadding
           )
         } else {
-          StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
-            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-            .setLineSpacing(0f, 1f)
+         var builder = StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
+            .setAlignment(Layout.Alignment.ALIGN_CENTER)
+            .setLineSpacing(spacingAddition.toFloat(), spacingMultiplier)
             .setIncludePad(includePadding)
             .setBreakStrategy(textBreakStrategy)
-            .setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NORMAL)
-            .build()
+            .setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_FULL)
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            builder.setUseLineSpacingFromFallbacks(true)
+          }
+          builder.build()
         }
         results.pushDouble(layout.height.toDouble())
       }
