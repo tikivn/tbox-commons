@@ -37,9 +37,9 @@ export default function App() {
       <ScrollView style={{marginTop: 50, flex:1}}>
       {result && result.map((size: any, index:  number) => { 
         /* console.log(index); */
-        return <Text style={{width: texts[index].width ? texts[index].width : size, height: texts[index].width ? size : texts[index].height, fontSize:texts[index].fontSize, backgroundColor: randomColor()}}>{texts[index].text}</Text>
+        return <Text style={{width: texts[index].width, height: size, fontSize:texts[index].fontSize, backgroundColor: randomColor()}}>{texts[index].text}</Text>
       })}
-      {result && result.map((size: any, index:  number) => { 
+      {result && result.map((_: any, index:  number) => { 
         /* console.log(index); */
         return <Text onLayout={(e) => {
           console.log( index+ " " +  e.nativeEvent.layout.height);
