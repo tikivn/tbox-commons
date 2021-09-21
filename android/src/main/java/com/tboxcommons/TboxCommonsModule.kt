@@ -1,15 +1,24 @@
 package com.tboxcommons
 
+import android.R
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
+import android.graphics.Bitmap
 import android.graphics.Typeface
+import android.graphics.drawable.Icon
 import android.graphics.text.LineBreaker
+import android.net.Uri
 import android.os.Build
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
+import android.widget.Toast
 import com.facebook.react.bridge.*
 import com.facebook.react.views.text.ReactFontManager
 import kotlin.math.roundToInt
-
+import com.tboxcommons.ImageDownloaderCallback
 
 class TboxCommonsModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
   override fun getName(): String {
@@ -50,7 +59,7 @@ class TboxCommonsModule(reactContext: ReactApplicationContext) : ReactContextBas
             includePadding
           )
         } else {
-         var builder = StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
+          var builder = StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
             .setAlignment(Layout.Alignment.ALIGN_CENTER)
             .setLineSpacing(spacingAddition.toFloat(), spacingMultiplier)
             .setIncludePad(includePadding)
@@ -65,6 +74,51 @@ class TboxCommonsModule(reactContext: ReactApplicationContext) : ReactContextBas
       }
     }
     promise.resolve(results)
+  }
+
+  @ReactMethod
+  fun addToHome(option: ReadableMap, promise: Promise) {
+    val i = Intent()
+    i.action = Intent.ACTION_VIEW
+
+    if (option.hasKey("url")) {
+      val url = option.getString("url") ?: ""
+      i.data = Uri.parse(url)
+      val iconUrl = option.getString("icon") ?: ""
+      val appName = if (option.hasKey("appName")) option.getString("appName") ?: "" else ""
+      val appId = if (option.hasKey("appId")) option.getString("appId") ?: "" else ""
+      if (iconUrl !== null) {
+        val downloader = ImageDownloader(ImageDownloaderCallback {
+          val size = reactApplicationContext.resources.getDimension(R.dimen.app_icon_size).toInt()
+          val resizeIcon = Bitmap.createScaledBitmap(it, size, size, false)
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val shortcutManager = reactApplicationContext.getSystemService(Context.SHORTCUT_SERVICE) as ShortcutManager
+            if (shortcutManager.isRequestPinShortcutSupported) {
+              val shortcutInfo = ShortcutInfo.Builder(reactApplicationContext, appId)
+                .setIntent(i)
+                .setIcon(Icon.createWithBitmap(resizeIcon))
+                .setShortLabel(appName)
+                .build()
+              shortcutManager.requestPinShortcut(shortcutInfo, null)
+            } else {
+              Toast.makeText(reactApplicationContext, "Creating Shortcuts is not Supported on this Launcher", Toast.LENGTH_SHORT).show()
+            }
+          } else {
+            val addIntent = Intent()
+            addIntent
+              .putExtra(Intent.EXTRA_SHORTCUT_INTENT, i)
+            addIntent.putExtra(Intent.EXTRA_SHORTCUT_NAME, appName)
+            addIntent.putExtra(Intent.EXTRA_SHORTCUT_ICON, resizeIcon)
+            addIntent.action = "com.android.launcher.action.INSTALL_SHORTCUT"
+            addIntent.putExtra("duplicate", false)
+            reactApplicationContext.sendBroadcast(addIntent)
+          }
+        })
+        downloader.execute(iconUrl)
+      } else {
+        promise.reject("InputError", "No URL provide")
+      }
+    }
   }
 
   private fun createTextPaint(fontSize: Double, fontFamily: String?, fontWeight: String?): TextPaint {
