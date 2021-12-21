@@ -2,13 +2,13 @@ package com.tboxcommons
 
 import android.R
 import android.app.Activity
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ShortcutInfo
-import android.content.pm.ShortcutManager
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.Typeface
-import android.graphics.drawable.Icon
 import android.graphics.text.LineBreaker
 import android.net.Uri
 import android.os.Build
@@ -16,20 +16,51 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.view.inputmethod.InputMethodManager
+import android.util.Log
 import android.widget.Toast
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
 import com.facebook.react.bridge.*
 import com.facebook.react.views.text.ReactFontManager
 import kotlin.math.roundToInt
-import com.tboxcommons.ImageDownloaderCallback
 
-class TboxCommonsModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+class TboxCommonsModule(reactContext: ReactApplicationContext) :
+  ReactContextBaseJavaModule(reactContext),
+  LifecycleEventListener {
+  private var addToHomePromise: Promise? = null
+  private val addToHomeReceiver = object : BroadcastReceiver() {
+    override fun onReceive(context: Context?, intent: Intent?) {
+      Log.d("TboxCommonsModule", "onAddShortcutSuccess")
+      addToHomePromise?.resolve(true)
+    }
+  }
+  private val addToHomeReceiverFilter = IntentFilter(ACTION_SHORTCUT_ADDED)
+
+  init {
+    reactContext.addLifecycleEventListener(this)
+    reactApplicationContext.registerReceiver(addToHomeReceiver, addToHomeReceiverFilter)
+  }
+
+  override fun onHostResume() {
+  }
+
+  override fun onHostPause() {
+  }
+
+  override fun onHostDestroy() {
+    reactApplicationContext.unregisterReceiver(addToHomeReceiver)
+    addToHomePromise = null
+  }
+
   override fun getName(): String {
     return "TboxCommons"
   }
 
   @ReactMethod
   fun measure(options: ReadableArray, promise: Promise) {
-    val textBreakStrategy = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) LineBreaker.BREAK_STRATEGY_SIMPLE else LineBreaker.BREAK_STRATEGY_HIGH_QUALITY
+    val textBreakStrategy =
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) LineBreaker.BREAK_STRATEGY_SIMPLE else LineBreaker.BREAK_STRATEGY_HIGH_QUALITY
     val results: WritableArray = Arguments.createArray()
     for (i in 0 until options.size()) {
       val option = options.getMap(i)!!
@@ -80,6 +111,7 @@ class TboxCommonsModule(reactContext: ReactApplicationContext) : ReactContextBas
 
   @ReactMethod
   fun addToHome(option: ReadableMap, promise: Promise) {
+    this.addToHomePromise = promise
     val i = Intent()
     i.action = Intent.ACTION_VIEW
 
@@ -89,37 +121,40 @@ class TboxCommonsModule(reactContext: ReactApplicationContext) : ReactContextBas
       val iconUrl = option.getString("icon") ?: ""
       val appName = if (option.hasKey("appName")) option.getString("appName") ?: "" else ""
       val appId = if (option.hasKey("appId")) option.getString("appId") ?: "" else ""
-      if (iconUrl !== null) {
-        val downloader = ImageDownloader(ImageDownloaderCallback {
-          val size = reactApplicationContext.resources.getDimension(R.dimen.app_icon_size).toInt()
-          val resizeIcon = Bitmap.createScaledBitmap(it, size, size, false)
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val shortcutManager = reactApplicationContext.getSystemService(Context.SHORTCUT_SERVICE) as ShortcutManager
-            if (shortcutManager.isRequestPinShortcutSupported) {
-              val shortcutInfo = ShortcutInfo.Builder(reactApplicationContext, appId)
-                .setIntent(i)
-                .setIcon(Icon.createWithBitmap(resizeIcon))
-                .setShortLabel(appName)
-                .build()
-              shortcutManager.requestPinShortcut(shortcutInfo, null)
-            } else {
-              Toast.makeText(reactApplicationContext, "Creating Shortcuts is not Supported on this Launcher", Toast.LENGTH_SHORT).show()
-            }
-          } else {
-            val addIntent = Intent()
-            addIntent
-              .putExtra(Intent.EXTRA_SHORTCUT_INTENT, i)
-            addIntent.putExtra(Intent.EXTRA_SHORTCUT_NAME, appName)
-            addIntent.putExtra(Intent.EXTRA_SHORTCUT_ICON, resizeIcon)
-            addIntent.action = "com.android.launcher.action.INSTALL_SHORTCUT"
-            addIntent.putExtra("duplicate", false)
-            reactApplicationContext.sendBroadcast(addIntent)
-          }
-        })
-        downloader.execute(iconUrl)
-      } else {
-        promise.reject("InputError", "No URL provide")
-      }
+      val downloader = ImageDownloader(ImageDownloaderCallback {
+        val size = reactApplicationContext.resources.getDimension(R.dimen.app_icon_size).toInt()
+        val resizeIcon = Bitmap.createScaledBitmap(it, size, size, false)
+        if (ShortcutManagerCompat.isRequestPinShortcutSupported(reactApplicationContext)) {
+          val shortcutInfo = ShortcutInfoCompat.Builder(reactApplicationContext, appId)
+            .setIntent(i)
+            .setIcon(IconCompat.createWithBitmap(resizeIcon))
+            .setShortLabel(appName)
+            .build()
+
+          val targetIntent =
+            ShortcutManagerCompat.createShortcutResultIntent(reactApplicationContext, shortcutInfo)
+              .apply {
+                action = ACTION_SHORTCUT_ADDED
+                setPackage(reactApplicationContext.packageName)
+              }
+
+          val pendingIntent =
+            PendingIntent.getBroadcast(reactApplicationContext, 0, targetIntent, 0)
+
+          ShortcutManagerCompat.requestPinShortcut(
+            reactApplicationContext,
+            shortcutInfo,
+            pendingIntent.intentSender
+          )
+        } else {
+          Toast.makeText(
+            reactApplicationContext,
+            "Creating Shortcuts is not Supported on this Launcher",
+            Toast.LENGTH_SHORT
+          ).show()
+        }
+      })
+      downloader.execute(iconUrl)
     }
   }
 
@@ -146,5 +181,9 @@ class TboxCommonsModule(reactContext: ReactApplicationContext) : ReactContextBas
       "normal", "100", "200", "300", "400" -> Typeface.NORMAL
       else -> Typeface.NORMAL
     }
+  }
+
+  companion object {
+    private const val ACTION_SHORTCUT_ADDED = "com.tboxcommons.TboxCommonsModule.SHORTCUT_ADDED"
   }
 }
