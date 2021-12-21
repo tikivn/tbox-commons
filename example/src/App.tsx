@@ -53,8 +53,7 @@ export default function App() {
       icon:
         'https://salt.tikicdn.com/ts/miniapp/ce/de/cf/938bd134e14e9d1f71c371345001218e.png',
     }).then((r) => {
-      console.log('height', r);
-      setResult(r);
+      console.log('addToHome', r);
     });
   }, []);
 
