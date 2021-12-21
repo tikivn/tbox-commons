@@ -1,6 +1,7 @@
 package com.tboxcommons
 
 import android.R
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutInfo
@@ -14,6 +15,7 @@ import android.os.Build
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import com.facebook.react.bridge.*
 import com.facebook.react.views.text.ReactFontManager
@@ -118,6 +120,14 @@ class TboxCommonsModule(reactContext: ReactApplicationContext) : ReactContextBas
       } else {
         promise.reject("InputError", "No URL provide")
       }
+    }
+  }
+
+  @ReactMethod
+  fun dismiss(promise: Promise) {
+    val imm: InputMethodManager = reactApplicationContext.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
+    reactApplicationContext.currentActivity?.currentFocus?.let {
+      imm.hideSoftInputFromWindow(it.windowToken, 0)
     }
   }
 

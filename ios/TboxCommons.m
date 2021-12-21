@@ -68,6 +68,14 @@ RCT_EXPORT_METHOD(measure:(NSArray *)options
     return isMeasureWidth ? rect.size.width : rect.size.height;
 }
 
+RCT_REMAP_METHOD(dismiss,
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    SEL sel = NSSelectorFromString(@"resignFirstResponder");
+    [[UIApplication sharedApplication] sendAction:sel to:nil from:nil forEvent:nil];
+    resolve(nil);
+}
+
 - (UIFont *)getFont:(NSString *)fontFamily
                size:(CGFloat)fontSize
              weight:(NSString*)fontWeight {
