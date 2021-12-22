@@ -9,5 +9,7 @@ declare type TboxCommonsType = {
     measure(options: Array<any>): Promise<Array<number>>;
     addToHome(option: AddToHomeParams): Promise<Array<number>>;
 };
+declare const TboxContacts: any;
 declare const _default: TboxCommonsType;
 export default _default;
+export { TboxContacts };
