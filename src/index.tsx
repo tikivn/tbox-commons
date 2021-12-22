@@ -12,6 +12,7 @@ type TboxCommonsType = {
   addToHome(option: AddToHomeParams): Promise<Array<number>>;
 };
 
-const { TboxCommons } = NativeModules;
+const { TboxCommons, TboxContacts } = NativeModules;
 
 export default TboxCommons as TboxCommonsType;
+export { TboxContacts };
