@@ -660,27 +660,27 @@ RCT_EXPORT_METHOD(addContact:(NSDictionary *)contactData resolver:(RCTPromiseRes
 }
 
 RCT_EXPORT_METHOD(openContactForm:(NSDictionary *)contactData
-                  resolver:(RCTPromiseResolveBlock) resolve
-                  rejecter:(RCTPromiseRejectBlock) __unused reject)
+    resolver:(RCTPromiseResolveBlock) resolve
+    rejecter:(RCTPromiseRejectBlock) __unused reject)
 {
     CNMutableContact * contact = [[CNMutableContact alloc] init];
-    
+
     [self updateRecord:contact withData:contactData];
-    
+
     CNContactViewController *controller = [CNContactViewController viewControllerForNewContact:contact];
-    
-    
+
+
     controller.delegate = self;
-    
+
     dispatch_async(dispatch_get_main_queue(), ^{
         UINavigationController* navigation = [[UINavigationController alloc] initWithRootViewController:controller];
         UIViewController *viewController = (UIViewController*)[[[[UIApplication sharedApplication] delegate] window] rootViewController];
         while (viewController.presentedViewController)
-        {
-            viewController = viewController.presentedViewController;
-        }
+            {
+                viewController = viewController.presentedViewController;
+            }
         [viewController presentViewController:navigation animated:YES completion:nil];
-        
+
         self->updateContactPromise = resolve;
     });
 }
@@ -707,30 +707,15 @@ RCT_EXPORT_METHOD(addToExistingContact: (NSDictionary *)contactData resolver: (R
 
 - (void)contactPicker:(CNContactPickerViewController *)picker didSelectContact:(CNContact *)contactPick {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        
         if (contactPick != nil) {
-            if(!contactStore) {
-                contactStore = [[CNContactStore alloc] init];
-            }
-            
-            NSDictionary *contactData = [self contactToDictionary:contactPick withThumbnails:true];
-            
-            NSString* recordID = [contactData valueForKey:@"recordID"];
-            NSArray *keys = @[CNContactIdentifierKey,
-                              CNContactEmailAddressesKey,
-                              CNContactBirthdayKey,
-                              CNContactImageDataKey,
-                              CNContactPhoneNumbersKey,
-                              [CNContactFormatter descriptorForRequiredKeysForStyle:CNContactFormatterStyleFullName],
-                              [CNContactViewController descriptorForRequiredKeys]];
-            
             @try {
-                
-                CNContact *contact = [[contactStore unifiedContactWithIdentifier:recordID keysToFetch:keys error:nil] mutableCopy];
+                CNContact* contact = [contactPick mutableCopy];
                 [self updateRecord:contact withData:_contactData];
                 CNContactViewController *contactViewController = [CNContactViewController viewControllerForContact:contact];
                 
                 contactViewController.delegate = self;
-                
+                contactViewController.allowsEditing = YES;
                 dispatch_async(dispatch_get_main_queue(), ^{
                     UINavigationController* navigation = [[UINavigationController alloc] initWithRootViewController:contactViewController];
                     
@@ -742,7 +727,7 @@ RCT_EXPORT_METHOD(addToExistingContact: (NSDictionary *)contactData resolver: (R
                     }
                     
                     [currentViewController presentViewController:navigation animated:YES completion:nil];
-                    [contactViewController performSelector:@selector(toggleEditing:) withObject:nil afterDelay:0.1];
+                    [contactViewController performSelector:@selector(toggleEditing:) withObject:nil afterDelay:0.2];
                     
                     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,  1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
                         [contactViewController.navigationItem.rightBarButtonItem setEnabled: YES];
@@ -761,12 +746,15 @@ RCT_EXPORT_METHOD(addToExistingContact: (NSDictionary *)contactData resolver: (R
     [self cancelContactForm];
 }
 
-- (void)openEditContact: (NSDictionary *)contactData resolve:(RCTPromiseResolveBlock) resolve reject:(RCTPromiseRejectBlock) reject {
+RCT_EXPORT_METHOD(openExistingContact:(NSDictionary *)contactData resolver:(RCTPromiseResolveBlock) resolve
+                  rejecter:(RCTPromiseRejectBlock) reject)
+{
     if(!contactStore) {
         contactStore = [[CNContactStore alloc] init];
     }
     
     NSString* recordID = [contactData valueForKey:@"recordID"];
+    NSString* backTitle = [contactData valueForKey:@"backTitle"];
     
     NSArray *keys = @[CNContactIdentifierKey,
                       CNContactEmailAddressesKey,
@@ -778,11 +766,14 @@ RCT_EXPORT_METHOD(addToExistingContact: (NSDictionary *)contactData resolver: (R
     
     @try {
         
-        CNContact *contact = [[contactStore unifiedContactWithIdentifier:recordID keysToFetch:keys error:nil] mutableCopy];
-        [self updateRecord:contact withData:contactData];
+        CNContact *contact = [contactStore unifiedContactWithIdentifier:recordID keysToFetch:keys error:nil];
+        
         CNContactViewController *contactViewController = [CNContactViewController viewControllerForContact:contact];
         
+        // Add a cancel button which will close the view
+        contactViewController.navigationItem.backBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:backTitle == nil ? @"Cancel" : backTitle style:UIBarButtonSystemItemCancel target:self action:@selector(cancelContactForm)];
         contactViewController.delegate = self;
+        
         
         dispatch_async(dispatch_get_main_queue(), ^{
             UINavigationController* navigation = [[UINavigationController alloc] initWithRootViewController:contactViewController];
@@ -794,25 +785,39 @@ RCT_EXPORT_METHOD(addToExistingContact: (NSDictionary *)contactData resolver: (R
                 currentViewController = currentViewController.presentedViewController;
             }
             
+            UIActivityIndicatorViewStyle *activityIndicatorStyle;
+            UIColor *activityIndicatorBackgroundColor;
+            if (@available(iOS 13, *)) {
+                activityIndicatorStyle = UIActivityIndicatorViewStyleMedium;
+                activityIndicatorBackgroundColor = [UIColor secondarySystemGroupedBackgroundColor];
+            } else {
+                activityIndicatorStyle = UIActivityIndicatorViewStyleGray;
+                activityIndicatorBackgroundColor = [UIColor whiteColor];;
+            }
+            
+            // Cover the contact view with an activity indicator so we can put it in edit mode without user seeing the transition
+            UIActivityIndicatorView *activityIndicatorView = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:activityIndicatorStyle];
+            activityIndicatorView.frame = UIApplication.sharedApplication.keyWindow.frame;
+            [activityIndicatorView startAnimating];
+            activityIndicatorView.backgroundColor = activityIndicatorBackgroundColor;
+            [navigation.view addSubview:activityIndicatorView];
+            
             [currentViewController presentViewController:navigation animated:YES completion:nil];
+            
             [contactViewController performSelector:@selector(toggleEditing:) withObject:nil afterDelay:0.1];
             
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW,  1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-                [contactViewController.navigationItem.rightBarButtonItem setEnabled: YES];
+            // remove the activity indicator after a delay so the underlying transition will have time to complete
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [activityIndicatorView removeFromSuperview];
             });
             
-            self->updateContactPromise = resolve;
+            updateContactPromise = resolve;
         });
+        
     }
     @catch (NSException *exception) {
         reject(@"Error", [exception reason], nil);
     }
-}
-
-RCT_EXPORT_METHOD(openExistingContact:(NSDictionary *)contactData resolver:(RCTPromiseResolveBlock) resolve
-                  rejecter:(RCTPromiseRejectBlock) reject)
-{
-    [self openEditContact: contactData resolve:resolve reject: reject];
 }
 
 RCT_EXPORT_METHOD(viewExistingContact:(NSDictionary *)contactData resolver:(RCTPromiseResolveBlock) resolve
@@ -825,27 +830,17 @@ RCT_EXPORT_METHOD(viewExistingContact:(NSDictionary *)contactData resolver:(RCTP
     NSString* recordID = [contactData valueForKey:@"recordID"];
     NSString* backTitle = [contactData valueForKey:@"backTitle"];
     
-    NSArray * keysToFetch =@[
-        CNContactEmailAddressesKey,
-        CNContactPhoneNumbersKey,
-        CNContactFamilyNameKey,
-        CNContactGivenNameKey,
-        CNContactMiddleNameKey,
-        CNContactPostalAddressesKey,
-        CNContactOrganizationNameKey,
-        CNContactJobTitleKey,
-        CNContactImageDataAvailableKey,
-        CNContactThumbnailImageDataKey,
-        CNContactImageDataKey,
-        CNContactUrlAddressesKey,
-        CNContactBirthdayKey,
-        CNContactIdentifierKey,
-        [CNContactFormatter descriptorForRequiredKeysForStyle:CNContactFormatterStyleFullName],
-        [CNContactViewController descriptorForRequiredKeys]];
+    NSArray *keys = @[CNContactIdentifierKey,
+                      CNContactEmailAddressesKey,
+                      CNContactBirthdayKey,
+                      CNContactImageDataKey,
+                      CNContactPhoneNumbersKey,
+                      [CNContactFormatter descriptorForRequiredKeysForStyle:CNContactFormatterStyleFullName],
+                      [CNContactViewController descriptorForRequiredKeys]];
     
     @try {
         
-        CNContact *contact = [contactStore unifiedContactWithIdentifier:recordID keysToFetch:keysToFetch error:nil];
+        CNContact *contact = [contactStore unifiedContactWithIdentifier:recordID keysToFetch:keys error:nil];
         
         CNContactViewController *contactViewController = [CNContactViewController viewControllerForContact:contact];
         
@@ -949,6 +944,7 @@ RCT_EXPORT_METHOD(editExistingContact:(NSDictionary *)contactData resolver:(RCTP
             UINavigationController* navigation = [[UINavigationController alloc] initWithRootViewController:controller];
             UIViewController *viewController = (UIViewController*)[[[[UIApplication sharedApplication] delegate] window] rootViewController];
             
+            //navigation.navigationBar.titleTextAttributes = @{NSForegroundColorAttributeName : [UIColor redColor]};
             
             while (viewController.presentedViewController)
             {
