@@ -52,6 +52,8 @@ type TboxContactsType = {
   addToExistingContact(option: AddPhoneContact): Promise<Array<number>>;
 };
 
-const { TboxCommons, TboxContacts: TboxContactsNative } = NativeModules;
+const { TboxCommons } = NativeModules;
+const TboxContacts: TboxContactsType = NativeModules.TboxContacts;
+
 export default TboxCommons as TboxCommonsType;
-export const TboxContacts: TboxContactsType = TboxContactsNative;
+export { TboxContacts };
