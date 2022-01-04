@@ -46,6 +46,7 @@ declare type TboxContactsType = {
     openContactForm(options: AddPhoneContact): Promise<Array<number>>;
     addToExistingContact(option: AddPhoneContact): Promise<Array<number>>;
 };
+declare const TboxContacts: TboxContactsType;
 declare const _default: TboxCommonsType;
 export default _default;
-export declare const TboxContacts: TboxContactsType;
+export { TboxContacts };
