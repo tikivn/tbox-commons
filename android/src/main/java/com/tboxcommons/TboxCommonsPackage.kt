@@ -8,16 +8,13 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 import com.tboxcontacts.TboxContactsModule
 
-
 class TboxCommonsPackage : ReactPackage {
-    override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-      val modules = Arrays.asList<NativeModule>()
-      modules.add(TboxCommonsModule(reactContext))
-      modules.add(TboxContactsModule(reactContext))
-      return modules;
-    }
+  override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
+    val modules = arrayOf(TboxCommonsModule(reactContext),TboxContactsModule(reactContext) );
+    return Arrays.asList<NativeModule>(* modules);
+  }
 
-    override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
-        return emptyList<ViewManager<*, *>>()
-    }
+  override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
+    return emptyList<ViewManager<*, *>>()
+  }
 }
