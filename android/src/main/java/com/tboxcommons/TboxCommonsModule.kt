@@ -26,32 +26,7 @@ import com.facebook.react.views.text.ReactFontManager
 import kotlin.math.roundToInt
 
 class TboxCommonsModule(reactContext: ReactApplicationContext) :
-  ReactContextBaseJavaModule(reactContext),
-  LifecycleEventListener {
-  private var addToHomePromise: Promise? = null
-  private val addToHomeReceiver = object : BroadcastReceiver() {
-    override fun onReceive(context: Context?, intent: Intent?) {
-      Log.d("TboxCommonsModule", "onAddShortcutSuccess")
-      addToHomePromise?.resolve(true)
-    }
-  }
-  private val addToHomeReceiverFilter = IntentFilter(ACTION_SHORTCUT_ADDED)
-
-  init {
-    reactContext.addLifecycleEventListener(this)
-    reactApplicationContext.registerReceiver(addToHomeReceiver, addToHomeReceiverFilter)
-  }
-
-  override fun onHostResume() {
-  }
-
-  override fun onHostPause() {
-  }
-
-  override fun onHostDestroy() {
-    reactApplicationContext.unregisterReceiver(addToHomeReceiver)
-    addToHomePromise = null
-  }
+  ReactContextBaseJavaModule(reactContext) {
 
   override fun getName(): String {
     return "TboxCommons"
@@ -111,10 +86,8 @@ class TboxCommonsModule(reactContext: ReactApplicationContext) :
 
   @ReactMethod
   fun addToHome(option: ReadableMap, promise: Promise) {
-    this.addToHomePromise = promise
     val i = Intent()
     i.action = Intent.ACTION_VIEW
-
     if (option.hasKey("url")) {
       val url = option.getString("url") ?: ""
       i.data = Uri.parse(url)
@@ -146,12 +119,14 @@ class TboxCommonsModule(reactContext: ReactApplicationContext) :
             shortcutInfo,
             pendingIntent.intentSender
           )
+          promise.resolve(true)
         } else {
           Toast.makeText(
             reactApplicationContext,
             "Creating Shortcuts is not Supported on this Launcher",
             Toast.LENGTH_SHORT
           ).show()
+          promise.reject("", "Creating Shortcuts is not Supported on this Launcher")
         }
       })
       downloader.execute(iconUrl)
