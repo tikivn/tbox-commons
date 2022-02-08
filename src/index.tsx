@@ -50,7 +50,7 @@ type TboxCommonsType = {
 type TboxContactsType = {
   openContactForm(options: AddPhoneContact): Promise<Array<number>>;
   addToExistingContact(option: AddPhoneContact): Promise<Array<number>>;
-  getAllScope(options?: Array<any>): Promise<Array<number>>;
+  getAllScope(): Promise<Array<number>>;
 };
 
 const { TboxCommons } = NativeModules;
