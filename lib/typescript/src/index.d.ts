@@ -45,7 +45,7 @@ declare type TboxCommonsType = {
 declare type TboxContactsType = {
     openContactForm(options: AddPhoneContact): Promise<Array<number>>;
     addToExistingContact(option: AddPhoneContact): Promise<Array<number>>;
-    getAllScope(options?: Array<any>): Promise<Array<number>>;
+    getAllScope(): Promise<Array<number>>;
 };
 declare const TboxContacts: TboxContactsType;
 declare const _default: TboxCommonsType;
