@@ -258,6 +258,50 @@ RCT_EXPORT_METHOD(getAll:(RCTPromiseResolveBlock) resolve rejecter:(RCTPromiseRe
     [self getAllContacts:resolve reject:reject withThumbnails:true];
 }
 
+RCT_EXPORT_METHOD(getAllScope:scope resolve: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+{
+    NSMutableArray *contacts = [[NSMutableArray alloc] init];
+    CNContactStore* contactStore = [self contactsStore:reject];
+    NSError *contactError = nil;
+    BOOL hasEmail = false;
+    BOOL hasPhone = true;
+    if(!contactStore)
+        return;
+    if(scope){
+      hasEmail = !![scope containsObject:@"email"];
+      hasPhone = !![scope containsObject:@"phone"];
+    }
+
+    NSMutableArray *keysToFetch = [NSMutableArray arrayWithArray: @[
+        CNContactEmailAddressesKey,
+        CNContactPhoneNumbersKey,
+        CNContactFamilyNameKey,
+        CNContactGivenNameKey,
+        CNContactMiddleNameKey
+    ]];
+
+    CNContactFetchRequest * request = [[CNContactFetchRequest alloc] initWithKeysToFetch:keysToFetch];
+        BOOL success = [contactStore enumerateContactsWithFetchRequest:request error:&contactError usingBlock:^(CNContact * __nonnull contact, BOOL * __nonnull stop){
+            NSMutableDictionary* output = [NSMutableDictionary dictionary];
+            NSString *emailString = contact.emailAddresses.firstObject.value;
+            NSString *fullName = [NSString stringWithFormat:@"%@ %@",contact.givenName,contact.familyName];
+            NSString *phoneString = contact.phoneNumbers.firstObject.value.stringValue;
+            
+            if(hasEmail && emailString){
+                [output setObject: emailString forKey:@"email"];
+                [output setObject: fullName forKey:@"name"];
+                [contacts addObject: output];
+            }
+            
+            if((!hasEmail || hasPhone) && phoneString){
+                [output setObject: phoneString forKey:@"phone"];
+                [output setObject: fullName forKey:@"name"];
+                [contacts addObject: output];
+            }
+        }];
+    resolve(contacts);
+}
+
 RCT_EXPORT_METHOD(getAllWithoutPhotos:(RCTPromiseResolveBlock) resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
     [self getAllContacts:resolve reject:reject withThumbnails:false];
