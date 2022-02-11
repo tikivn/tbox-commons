@@ -200,17 +200,6 @@ RCT_EXPORT_METHOD(getContactsByEmailAddress:(NSString *)string
     resolve(contacts);
 }
 
--(void) getAllContacts:(RCTPromiseResolveBlock) resolve
-                reject:(RCTPromiseRejectBlock) reject
-        withThumbnails:(BOOL) withThumbnails
-{
-    CNContactStore* contactStore = [self contactsStore:reject];
-    if(!contactStore)
-        return;
-    
-    resolve([self retrieveContactsFromAddressBook:contactStore withThumbnails:withThumbnails]);
-}
-
 -(void) getAllContactsCount:(RCTPromiseResolveBlock) resolve
                      reject:(RCTPromiseRejectBlock) reject
 {
@@ -253,58 +242,47 @@ RCT_EXPORT_METHOD(getContactsByEmailAddress:(NSString *)string
     resolve(count);
 }
 
-RCT_EXPORT_METHOD(getAll:(RCTPromiseResolveBlock) resolve rejecter:(RCTPromiseRejectBlock)reject)
-{
-    [self getAllContacts:resolve reject:reject withThumbnails:true];
-}
-
-RCT_EXPORT_METHOD(getAllScope:scope resolve: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+RCT_EXPORT_METHOD(getAllContacts:(NSArray *)scope resolve: (RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
     NSMutableArray *contacts = [[NSMutableArray alloc] init];
     CNContactStore* contactStore = [self contactsStore:reject];
     NSError *contactError = nil;
-    BOOL hasEmail = false;
-    BOOL hasPhone = true;
+    BOOL hasEmail = !![scope containsObject:@"email"];
+    BOOL hasPhone = !![scope containsObject:@"phone"];
     if(!contactStore)
         return;
-    if(scope){
-      hasEmail = !![scope containsObject:@"email"];
-      hasPhone = !![scope containsObject:@"phone"];
-    }
-
+        
     NSMutableArray *keysToFetch = [NSMutableArray arrayWithArray: @[
         CNContactEmailAddressesKey,
         CNContactPhoneNumbersKey,
         CNContactFamilyNameKey,
         CNContactGivenNameKey,
-        CNContactMiddleNameKey
+        CNContactMiddleNameKey,
+        [CNContactFormatter descriptorForRequiredKeysForStyle:CNContactFormatterStyleFullName],
     ]];
 
     CNContactFetchRequest * request = [[CNContactFetchRequest alloc] initWithKeysToFetch:keysToFetch];
         BOOL success = [contactStore enumerateContactsWithFetchRequest:request error:&contactError usingBlock:^(CNContact * __nonnull contact, BOOL * __nonnull stop){
+            CNContactFormatter *formatter = [[CNContactFormatter alloc] init];
             NSMutableDictionary* output = [NSMutableDictionary dictionary];
             NSString *emailString = contact.emailAddresses.firstObject.value;
-            NSString *fullName = [NSString stringWithFormat:@"%@ %@",contact.givenName,contact.familyName];
             NSString *phoneString = contact.phoneNumbers.firstObject.value.stringValue;
+            NSString *fullName = [formatter stringFromContact:contact];
             
             if(hasEmail && emailString){
                 [output setObject: emailString forKey:@"email"];
-                [output setObject: fullName forKey:@"name"];
+                [output setObject: fullName forKey:@"full_name"];
+                if(hasPhone){
+                    [output setObject: (phoneString) ? phoneString : @"" forKey:@"phone_number"];
+                }
                 [contacts addObject: output];
-            }
-            
-            if((!hasEmail || hasPhone) && phoneString){
-                [output setObject: phoneString forKey:@"phone"];
-                [output setObject: fullName forKey:@"name"];
+            }else if((!hasEmail || hasPhone) && phoneString){
+                [output setObject: phoneString forKey:@"phone_number"];
+                [output setObject: fullName forKey:@"full_name"];
                 [contacts addObject: output];
             }
         }];
     resolve(contacts);
-}
-
-RCT_EXPORT_METHOD(getAllWithoutPhotos:(RCTPromiseResolveBlock) resolve rejecter:(RCTPromiseRejectBlock)reject)
-{
-    [self getAllContacts:resolve reject:reject withThumbnails:false];
 }
 
 RCT_EXPORT_METHOD(getCount:(RCTPromiseResolveBlock) resolve rejecter:(RCTPromiseRejectBlock)reject)
@@ -731,6 +709,16 @@ RCT_EXPORT_METHOD(openContactForm:(NSDictionary *)contactData
 
 RCT_EXPORT_METHOD(addToExistingContact: (NSDictionary *)contactData resolver: (RCTPromiseResolveBlock)resolve rejecter: (RCTPromiseRejectBlock) reject ) {
     self->_contactData = contactData;
+    [self openScreenContacts: resolve rejecter: reject];
+}
+
+RCT_EXPORT_METHOD(choosePhoneContact:(RCTPromiseResolveBlock)resolve rejecter: (RCTPromiseRejectBlock) reject ) {
+    self->_contactData = nil;
+    self->updateContactPromise = resolve;
+    [self openScreenContacts: resolve rejecter: reject];
+}
+
+- (void)openScreenContacts: (RCTPromiseResolveBlock)resolve rejecter: (RCTPromiseRejectBlock) reject  {
     UIViewController *picker = [[CNContactPickerViewController alloc] init];
     
     ((CNContactPickerViewController *)picker).delegate = self;
@@ -746,42 +734,59 @@ RCT_EXPORT_METHOD(addToExistingContact: (NSDictionary *)contactData resolver: (R
         self->_reject = reject;
         self->_resolve = resolve;
     });
-    
 }
 
+
 - (void)contactPicker:(CNContactPickerViewController *)picker didSelectContact:(CNContact *)contactPick {
+
+    if (contactPick != nil && _contactData != nil) {
+        // after pick contact for add existing contact
+        [self handlExistingPicker: contactPick];
+    }else{
+        // after pick contact for choose phone contact
+        CNContactFormatter *formatter = [[CNContactFormatter alloc] init];
+        NSMutableDictionary* output = [NSMutableDictionary dictionary];
+        NSString *fullName = [formatter stringFromContact:contactPick];
+        NSString *phoneString = contactPick.phoneNumbers.firstObject.value.stringValue;
+        
+        [output setObject: fullName forKey:@"full_name"];
+        [output setObject: phoneString ? phoneString: @"" forKey:@"phone_number"];
+        _resolve(output);
+    }
+}
+
+
+- (void)handlExistingPicker:(CNContact *)contactPick {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         
-        if (contactPick != nil) {
-            @try {
-                CNContact* contact = [contactPick mutableCopy];
-                [self updateRecord:contact withData:_contactData];
-                CNContactViewController *contactViewController = [CNContactViewController viewControllerForContact:contact];
+        @try {
+            CNContact* contact = [contactPick mutableCopy];
+            [self updateRecord:contact withData:_contactData];
+            CNContactViewController *contactViewController = [CNContactViewController viewControllerForContact:contact];
+            
+            contactViewController.delegate = self;
+            contactViewController.allowsEditing = YES;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                UINavigationController* navigation = [[UINavigationController alloc] initWithRootViewController:contactViewController];
                 
-                contactViewController.delegate = self;
-                contactViewController.allowsEditing = YES;
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    UINavigationController* navigation = [[UINavigationController alloc] initWithRootViewController:contactViewController];
-                    
-                    UIViewController *currentViewController = [UIApplication sharedApplication].keyWindow.rootViewController;
-                    
-                    while (currentViewController.presentedViewController)
-                    {
-                        currentViewController = currentViewController.presentedViewController;
-                    }
-                    
-                    [currentViewController presentViewController:navigation animated:YES completion:nil];
-                    [contactViewController performSelector:@selector(toggleEditing:) withObject:nil afterDelay:0.2];
-                    
-                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,  1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-                        [contactViewController.navigationItem.rightBarButtonItem setEnabled: YES];
-                    });
+                UIViewController *currentViewController = [UIApplication sharedApplication].keyWindow.rootViewController;
+                
+                while (currentViewController.presentedViewController)
+                {
+                    currentViewController = currentViewController.presentedViewController;
+                }
+                
+                [currentViewController presentViewController:navigation animated:YES completion:nil];
+                [contactViewController performSelector:@selector(toggleEditing:) withObject:nil afterDelay:0.2];
+                
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW,  1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+                    [contactViewController.navigationItem.rightBarButtonItem setEnabled: YES];
                 });
-                self->updateContactPromise = _resolve;
-            }
-            @catch (NSException *exception) {
-                _reject(@"Error", [exception reason], nil);
-            }
+            });
+            self->updateContactPromise = self->_resolve;
+        }
+        @catch (NSException *exception) {
+            self->_reject(@"Error", [exception reason], nil);
         }
     });
 }
