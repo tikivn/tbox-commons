@@ -248,7 +248,7 @@ RCT_EXPORT_METHOD(getAllContacts:(NSArray *)scope resolve: (RCTPromiseResolveBlo
     CNContactStore* contactStore = [self contactsStore:reject];
     NSError *contactError = nil;
     BOOL hasEmail = !![scope containsObject:@"email"];
-    BOOL hasPhone = !![scope containsObject:@"phone"];
+    BOOL hasPhone = !![scope containsObject:@"phone"] || !hasEmail;
     if(!contactStore)
         return;
         
@@ -260,25 +260,33 @@ RCT_EXPORT_METHOD(getAllContacts:(NSArray *)scope resolve: (RCTPromiseResolveBlo
         CNContactMiddleNameKey,
         [CNContactFormatter descriptorForRequiredKeysForStyle:CNContactFormatterStyleFullName],
     ]];
-
+    
     CNContactFetchRequest * request = [[CNContactFetchRequest alloc] initWithKeysToFetch:keysToFetch];
         BOOL success = [contactStore enumerateContactsWithFetchRequest:request error:&contactError usingBlock:^(CNContact * __nonnull contact, BOOL * __nonnull stop){
             CNContactFormatter *formatter = [[CNContactFormatter alloc] init];
-            NSMutableDictionary* output = [NSMutableDictionary dictionary];
             NSString *emailString = contact.emailAddresses.firstObject.value;
-            NSString *phoneString = contact.phoneNumbers.firstObject.value.stringValue;
             NSString *fullName = [formatter stringFromContact:contact];
             
-            if(hasEmail && emailString){
+            if(hasPhone && contact.phoneNumbers!=nil && [contact.phoneNumbers count]>0){
+                for (CNLabeledValue *label in contact.phoneNumbers)
+                 {
+                     NSString *phoneString = [label.value stringValue];
+                     NSMutableDictionary* output = [NSMutableDictionary dictionary];
+                     if (phoneString)
+                     {
+                         [output setObject: fullName forKey:@"full_name"];
+                         [output setObject: phoneString forKey:@"phone_number"];
+                         if(hasEmail){
+                             [output setObject: (emailString) ? emailString : @"" forKey:@"email"];
+                         }
+                     }
+                     [contacts addObject: output];
+                 }
+            }
+            if(!hasPhone && hasEmail && emailString){
+                NSMutableDictionary* output = [NSMutableDictionary dictionary];
+                [output setObject: fullName forKey:@"full_name"];
                 [output setObject: emailString forKey:@"email"];
-                [output setObject: fullName forKey:@"full_name"];
-                if(hasPhone){
-                    [output setObject: (phoneString) ? phoneString : @"" forKey:@"phone_number"];
-                }
-                [contacts addObject: output];
-            }else if((!hasEmail || hasPhone) && phoneString){
-                [output setObject: phoneString forKey:@"phone_number"];
-                [output setObject: fullName forKey:@"full_name"];
                 [contacts addObject: output];
             }
         }];
