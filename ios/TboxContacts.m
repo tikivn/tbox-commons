@@ -274,7 +274,7 @@ RCT_EXPORT_METHOD(getAllContacts:(NSArray *)scope resolve: (RCTPromiseResolveBlo
                      NSMutableDictionary* output = [NSMutableDictionary dictionary];
                      if (phoneString)
                      {
-                         [output setObject: fullName forKey:@"full_name"];
+                         [output setObject: fullName ? fullName : @"" forKey:@"full_name"];
                          [output setObject: phoneString forKey:@"phone_number"];
                          if(hasEmail){
                              [output setObject: (emailString) ? emailString : @"" forKey:@"email"];
@@ -285,7 +285,7 @@ RCT_EXPORT_METHOD(getAllContacts:(NSArray *)scope resolve: (RCTPromiseResolveBlo
             }
             if(!hasPhone && hasEmail && emailString){
                 NSMutableDictionary* output = [NSMutableDictionary dictionary];
-                [output setObject: fullName forKey:@"full_name"];
+                [output setObject: fullName ? fullName : @"" forKey:@"full_name"];
                 [output setObject: emailString forKey:@"email"];
                 [contacts addObject: output];
             }
