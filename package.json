@@ -1,6 +1,6 @@
 {
   "name": "tbox-commons",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Tbox common components, frameworks for miniapp platform",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
