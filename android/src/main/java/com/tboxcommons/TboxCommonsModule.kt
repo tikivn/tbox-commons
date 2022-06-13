@@ -141,7 +141,7 @@ class TboxCommonsModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  private fun createTextPaint(fontSize: Double, fontFamily: String?, fontWeight: String?): TextPaint {
+  private fun createTextPaint(fontSize: Double, fontFamily: String, fontWeight: String?): TextPaint {
     val paint = TextPaint(TextPaint.ANTI_ALIAS_FLAG)
     paint.textSize = (fontSize * reactApplicationContext.resources.configuration.fontScale).toFloat()
     val assetManager = reactApplicationContext.assets
