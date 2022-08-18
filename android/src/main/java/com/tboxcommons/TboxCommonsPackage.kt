@@ -7,10 +7,11 @@ import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 import com.tboxcontacts.TboxContactsModule
+import com.tboxsecurestorage.TboxSecureStorageModule
 
 class TboxCommonsPackage : ReactPackage {
   override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-    val modules = arrayOf(TboxCommonsModule(reactContext),TboxContactsModule(reactContext) );
+    val modules = arrayOf(TboxCommonsModule(reactContext),TboxContactsModule(reactContext) , TboxSecureStorageModule(reactContext));
     return Arrays.asList<NativeModule>(* modules);
   }
 
