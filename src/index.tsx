@@ -17,3 +17,4 @@ const { TboxCommons } = NativeModules;
 
 export default TboxCommons as TboxCommonsType;
 export { TboxContacts } from './contact';
+export { TboxSecureStorage } from './secureStorage';

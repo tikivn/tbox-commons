@@ -12,3 +12,4 @@ declare type TboxCommonsType = {
 declare const _default: TboxCommonsType;
 export default _default;
 export { TboxContacts } from './contact';
+export { TboxSecureStorage } from './secureStorage';
