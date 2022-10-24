@@ -800,7 +800,7 @@ RCT_EXPORT_METHOD(choosePhoneContact:(RCTPromiseResolveBlock)resolve rejecter: (
 }
 
 -(void)contactPickerDidCancel:(CNContactPickerViewController *)picker {
-    [self cancelContactForm];
+    [self cancelContactForm:picker];
 }
 
 RCT_EXPORT_METHOD(openExistingContact:(NSDictionary *)contactData resolver:(RCTPromiseResolveBlock) resolve
@@ -1045,6 +1045,15 @@ RCT_EXPORT_METHOD(editExistingContact:(NSDictionary *)contactData resolver:(RCTP
         UIViewController *rootViewController = (UIViewController*)[[[[UIApplication sharedApplication] delegate] window] rootViewController];
         [rootViewController dismissViewControllerAnimated:YES completion:nil];
         
+        updateContactPromise(nil);
+        updateContactPromise = nil;
+    }
+}
+
+- (void)cancelContactForm:(UIViewController*)viewController
+{
+    [viewController dismissViewControllerAnimated:true completion:nil];
+    if (updateContactPromise != nil) {
         updateContactPromise(nil);
         updateContactPromise = nil;
     }
